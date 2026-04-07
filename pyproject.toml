@@ -1,0 +1,37 @@
+[project]
+name = "dataops_code_cot"
+version = "0.1.0"
+description = "A data generation for chain of thought data"
+authors = [
+    { name = "Shivdeep Singh", email = "shivdeep.singh@ibm.com" },
+    { name = "Vaibhav Saxena", email = "vaibhavsaxena@in.ibm.com" },
+    { name = "Shailja Thakur", email = "Shailja.Thakur@ibm.com" },
+    { name = "Rohan Kulkarni", email = "Rohan-Kulkarni7@ibm.com" },
+]
+readme = "README.md"
+requires-python = ">=3.8"
+dependencies = [
+    "mkdocs>=1.6.1",
+    "openai>=1.91.0",
+    "pandas>=2.0.3",
+    "pip>=25.0.1",
+    "pyarrow>=17.0.0",
+    "pysnooper>=1.2.3",
+    "pytextrank>=3.3.0",
+    "requests>=2.32.4",
+    "transformers>=4.46.3",
+    "typer[all]",
+]
+
+
+[build-system]
+requires = ["setuptools", "typer"]
+build-backend = "setuptools.build_meta"
+
+[tool.pytest.ini_options]
+pythonpath = ["src"]
+
+[dependency-groups]
+dev = [
+    "pytest>=8.3.5",
+]
