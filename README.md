@@ -70,6 +70,10 @@ Supported backends: `ollama` · `openai-compatible` · `rits` (set `RITS_BASE_UR
 
 Edit `pipeline_config.yaml` to control concept cap, difficulty level, number of samples, test case limits, trace counts, and CoT pair budget — no flags needed.
 
+> **Note on model choice:** Models that follow structured prompts reliably (e.g. `llama3.1:8b`, `nemotron`, Mistral-family) work best. Thinking models (Qwen3, DeepSeek-R1) require `max_output_tokens: 4096` or higher in `pipeline_config.yaml`. Very small models (< 3B) may not follow the output format consistently.
+
+For running at scale and understanding each stage in detail, see [COT_PIPELINE_GUIDE.md](./COT_PIPELINE_GUIDE.md).
+
 ---
 
 ## Citation
