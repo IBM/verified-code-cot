@@ -8,7 +8,7 @@
 This repository contains the **Verified Code CoT** data synthesis pipeline — an end-to-end system that generates execution-grounded chain-of-thought training data for code reasoning. Each reasoning sample is verified against actual program execution traces, not generated from static code.
 
 <p align="center">
-  <img src="docs/pipeline.svg" width="860" alt="Verified CodeCoT pipeline"/>
+  <img src="docs/pipeline.png" width="1000" alt="Verified CodeCoT pipeline"/>
 </p>
 
 ---
@@ -47,12 +47,13 @@ Model backend and all other settings are read from `pipeline_config.yaml`. Overr
 python examples/run_demo.py \
   --input-file examples/test_concepts.txt \
   --backend ollama \
-  --model-id llama3.1:8b
+  --model-id llama3.1:8b \
+  --output-dir /tmp/codecot_run
 ```
 
 **Output:** CoT data → `<output-dir>/raw/filtered/` · Summary → `<output-dir>/demo_report.md`
 
-Supported backends: `ollama` · `openai-compatible` · `rits` (set `RITS_BASE_URL` + `RITS_API_KEY`)
+Supported backends: `ollama` · `openai-compatible`
 
 ---
 
