@@ -40,7 +40,7 @@ def parse_model_response(
             # Attempt to parse each JSON block
             concept_data = json.loads(block)
             # Extract fields if they exist
-            concept = concept_data.get("Concept", "").strip()
+            concept = concept_data.get("Concept", "").strip().strip("'\"")
             description = concept_data.get("Description", "").strip()
             examples = concept_data.get("Examples", [])
 

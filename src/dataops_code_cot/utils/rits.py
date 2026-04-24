@@ -1,5 +1,4 @@
 from openai import OpenAI
-from transformers import AutoTokenizer
 
 PHI4 = "microsoft-phi-4"
 RITS_API_VERSION = "v1"
@@ -33,7 +32,6 @@ class OpenAIClient:
     ):
         if model_id is None:
             model_id = self.model_id
-        print(model_id)
         # Setup the sampling parameters for generation
         messages = [
             {"role": "system", "content": system_prompt},

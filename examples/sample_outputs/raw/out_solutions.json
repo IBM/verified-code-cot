@@ -1,0 +1,12 @@
+[
+  {
+    "id": 1,
+    "instruction": "Write a function that receives meeting intervals as (start, end) pairs and returns the total number of covered minutes after merging overlapping or touching intervals.",
+    "responses": [
+      "def covered_minutes(intervals):\n    if not intervals:\n        return 0\n    intervals = sorted(intervals)\n    merged = []\n    start, end = intervals[0]\n    for next_start, next_end in intervals[1:]:\n        if next_start <= end:\n            end = max(end, next_end)\n        else:\n            merged.append((start, end))\n            start, end = next_start, next_end\n    merged.append((start, end))\n    return sum(end - start for start, end in merged)"
+    ],
+    "instruction_based_tests": [
+      "assert covered_minutes([(1, 4), (2, 6), (8, 10), (10, 12)]) == 9"
+    ]
+  }
+]

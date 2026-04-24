@@ -1,0 +1,43 @@
+# ── CodeCoT Pipeline Configuration ────────────────────────────────────────────
+# Minimal command-line flags: --input-file, --backend, --model-id, --output-dir,
+# --config, --stage.  Everything else is controlled here.
+
+# ── Model ──────────────────────────────────────────────────────────────────────
+model:
+  backend: ollama               # ollama | openai-compatible | rits
+  model_id: nemotron-3-nano:30b-cloud 
+  # For rits: set backend: rits, model_id: e.g. mistralai/Mistral-Small-3.1-24B-Instruct-2503
+  # and export RITS_BASE_URL and RITS_API_KEY in your environment.
+
+# ── Stage A: Concept extraction + synthesis ────────────────────────────────────
+stage_a:
+  difficulty_levels: ["easy"]   # easy | medium | hard  — restore ["medium","hard"] for full runs
+  max_concepts: 2               # null = all concepts from input file
+  num_samples: 1                # code solutions and test sets generated per instruction
+  temperature: 0.5
+  max_output_tokens: 4096   # increase for thinking models (qwen3, deepseek-r1 etc.)
+  batch_size: 10
+
+# ── Stage B: Execution verification ───────────────────────────────────────────
+stage_b:
+  timeout: 0.1                  # seconds per test case execution
+  test_case_limit: 2            # max test cases evaluated per solution
+
+# ── Stage C: Trace generation + CoT synthesis ─────────────────────────────────
+stage_c:
+  # Trace generation (get_traces.py)
+  trace_timeout: 5              # seconds per execution during tracing
+  max_workers: 8                # parallel workers for trace generation
+  batch_size: 1000              # JSONL entries processed per batch
+
+  max_pairs: 3                  # max verified pairs to run through trace + CoT (null = all)
+  trace_tests_per_pair: 3       # max passing tests to trace per pair (null = all)
+
+  # CoT generation (generate_cots_batched.py)
+  max_tokens: 4096             # max tokens for trace content window, prev 16384
+  chars_per_token: 4            # chars-per-token estimate for size filtering
+  output_buffer_size: 10        # conversations buffered before flushing to disk
+  target_test_cases_per_batch: 300
+
+  # Best test case filter (best_test_case_filter.py)
+  filter_workers: 5             # parallel workers for test case filtering

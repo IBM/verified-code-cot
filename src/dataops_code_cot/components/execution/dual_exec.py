@@ -13,11 +13,6 @@ from dataops_code_cot.components.execution.python.execution import (
 )
 from dataops_code_cot.components.execution.python.postprocess import PostProcessor
 
-logging.basicConfig(
-    format="SystemLog: [%(asctime)s][%(name)s][%(levelname)s] - %(message)s",
-    datefmt="%Y-%m-%d %H:%M:%S",
-    level=logging.INFO,
-)
 
 logger = logging.getLogger(__name__)
 
@@ -217,9 +212,7 @@ def save_solution_test_cases(
     return entries
 
 
-def dual_exec(results, instruction_based_test_cases):
-    timeout = 0.1
-    test_case_limit = 5
+def dual_exec(results, instruction_based_test_cases, timeout: float = 0.1, test_case_limit: int = 5):
     cache_dir = "."
     save_path = "dual_exec_results.json"
 

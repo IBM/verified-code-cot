@@ -54,5 +54,7 @@ check_and_install_spacy() {
 # Example usage of the functions
 check_and_install_uv
 check_and_setup_venv
+# Install the package in editable mode so dataops_code_cot is importable
+. .venv/bin/activate && uv pip install -e . --quiet
 check_and_install_invoke
 check_and_install_spacy

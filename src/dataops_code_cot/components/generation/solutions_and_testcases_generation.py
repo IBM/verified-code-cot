@@ -11,11 +11,6 @@ from tqdm import tqdm
 
 # from utils import VLLMClient_batch
 
-logging.basicConfig(
-    level=logging.DEBUG,
-    format="%(asctime)s - %(levelname)s - %(message)s",
-    handlers=[logging.StreamHandler()],
-)
 logger = logging.getLogger(__name__)
 logging.getLogger("utils").setLevel(logging.DEBUG)
 logger.debug("Logging initialized at DEBUG level")
@@ -137,11 +132,20 @@ def extract_python_code(response_text):
 
 
 def parse_signature_details(signature_text):
+    # Try ```text block first, then ```python block
     match = re.search(r"```text\n(.*?)\n```", signature_text, re.DOTALL)
-    signature_text = match.group(1).strip() if match else signature_text.strip()
+    if not match:
+        match = re.search(r"```python\n(.*?)\n```", signature_text, re.DOTALL)
+    if match:
+        signature_text = match.group(1).strip()
+    else:
+        # Strip prose preamble — find the first Function: or Class: token
+        clean = re.search(r"((?:Function|Class)\s*:.+)", signature_text, re.DOTALL)
+        signature_text = clean.group(1).strip() if clean else signature_text.strip()
     signature_text = (
         signature_text.replace("<br>", "").replace("\n", " ").replace("  ", " ")
     )
+    signature_text = re.sub(r"\s{2,}", " ", signature_text).strip()
 
     if signature_text.startswith("Function:"):
         try:
@@ -275,14 +279,21 @@ def extract_test_scenarios(response):
     return []
 
 
-def generate_instruction_response(client, concepts, args, prompts):
-    difficulty_levels = ["medium", "hard"]
+def generate_instruction_response(client, concepts, args, prompts, difficulty_levels=None, num_samples=2):
+    if difficulty_levels is None:
+        # difficulty_levels = ["medium", "hard"]  # full run
+        difficulty_levels = ["easy"]  # debug
     # instruction_regex = re.compile(r"Instruction\d+:\n(.*?)\n", re.DOTALL)
     instruction_regex = re.compile(r"Instruction\d+:\n(.*?)(?:\n|$)", re.DOTALL)
     current_id = args.seed_code_start_index
     results_gl, test_cases_gl = [], []
 
     difficulty_desc = {
+        "easy": {
+            "complexity_description": "simple problems solvable with basic Python constructs (1-4 difficulty)",
+            "expected_lines": "5-20 lines",
+            "difficulty_score": "1-4 on a scale of 1-10",
+        },
         "medium": {
             "complexity_description": "moderately complex problems requiring algorithmic thinking (5-7 difficulty)",
             "expected_lines": "30-60 lines",
@@ -381,8 +392,12 @@ def generate_instruction_response(client, concepts, args, prompts):
         # print(f"signrature skeleton {signature_skeleton}\n")
         signature_info = parse_signature_details(signature_skeleton)
         if signature_info["type"] == "unknown":
-            # print(f"Failed to determine valid signature for: {instr}")
             logger.warning(f"Failed to determine valid signature for: {instr}")
+            continue
+        # Skip void/None return types — no meaningful I/O for CoT generation
+        ret = (signature_info.get("return_type") or "").strip().lower()
+        if ret in {"none", "unknown", ""}:
+            logger.warning(f"Skipping void/unknown return type for: {instr[:60]}")
             continue
         signature_infos.append((concept, d, instr, signature_info))
 
@@ -409,8 +424,8 @@ def generate_instruction_response(client, concepts, args, prompts):
             input_params=", ".join(signature_info["inputs"]),
             return_type=signature_info["return_type"],
         )
-        func_code_prompts.extend([code_prompt] * 2)  # 2 calls per instruction
-        func_code_system_prompts.extend(["You are a Python programming expert."] * 2)
+        func_code_prompts.extend([code_prompt] * num_samples)
+        func_code_system_prompts.extend(["You are a Python programming expert."] * num_samples)
 
     for concept, d, instruction, signature_info in class_signatures:
         constructor_sig = (
@@ -434,8 +449,8 @@ def generate_instruction_response(client, concepts, args, prompts):
                 "\n".join(method_sigs) if method_sigs else "# No methods specified"
             ),
         )
-        class_code_prompts.extend([code_prompt] * 2)  # 2 calls per instruction
-        class_code_system_prompts.extend(["You are a Python programming expert."] * 2)
+        class_code_prompts.extend([code_prompt] * num_samples)
+        class_code_system_prompts.extend(["You are a Python programming expert."] * num_samples)
 
     func_code_responses = []
     class_code_responses = []
@@ -542,9 +557,9 @@ def generate_instruction_response(client, concepts, args, prompts):
                 function_signature=f"def {signature_info['name']}({', '.join(signature_info['inputs'])}) -> {signature_info['return_type']}",
                 required_tests=required_tests_str,
             )
-            func_test_prompts.extend([test_prompt] * 3)  # 3 calls per instruction
+            func_test_prompts.extend([test_prompt] * num_samples)
             func_test_system_prompts.extend(
-                ["You are an expert at Python testing and requirements analysis."] * 3
+                ["You are an expert at Python testing and requirements analysis."] * num_samples
             )
         else:
             method_names = [m["name"] for m in signature_info["methods"]]
@@ -570,9 +585,9 @@ def generate_instruction_response(client, concepts, args, prompts):
                 ),
                 required_tests=required_tests_str,
             )
-            class_test_prompts.extend([test_prompt] * 3)  # 3 calls per instruction
+            class_test_prompts.extend([test_prompt] * num_samples)
             class_test_system_prompts.extend(
-                ["You are an expert at Python testing and requirements analysis."] * 3
+                ["You are an expert at Python testing and requirements analysis."] * num_samples
             )
 
     func_test_responses = []
@@ -723,7 +738,7 @@ def load_bug_data(file_path):
     return bug_data
 
 
-def get_instruction_code_test_pairs(concepts, client, model_id):
+def get_instruction_code_test_pairs(concepts, client, model_id, difficulty_levels=None, max_concepts=None, num_samples=2, max_output_tokens=2048):
     # Third Party
 
     args = Args(
@@ -731,6 +746,7 @@ def get_instruction_code_test_pairs(concepts, client, model_id):
         seed_data_file="concepts.json",
         model=model_id,
         model_type="rits",
+        max_output_tokens=max_output_tokens,
     )
 
     # Load prompts with error handling
@@ -738,24 +754,22 @@ def get_instruction_code_test_pairs(concepts, client, model_id):
     file_path = script_dir / "prompts_batch.json"
     prompts = load_prompts(file_path)
     unprocessed_concepts = [c for c in concepts]
+    if max_concepts is not None:
+        unprocessed_concepts = unprocessed_concepts[:max_concepts]
     if not unprocessed_concepts:
-        print("All concepts have been synthesized.")
         return [], []
 
-    print(f"Found {len(unprocessed_concepts)} unsynthesized concepts to process.")
-
     batch_size = 10
-
     results = []
     instruction_based_test_cases = []
 
-    print(f"Found {len(unprocessed_concepts)} unsynthesized concepts to process.")
-    with tqdm(total=len(unprocessed_concepts), desc="Synthesizing Concepts") as pbar:
+    with tqdm(total=len(unprocessed_concepts), desc="  Synthesizing", ncols=60, leave=False) as pbar:
         for i in range(0, len(unprocessed_concepts), batch_size):
             batch = unprocessed_concepts[i : i + batch_size]
-            print(f"Processing batch {i // batch_size + 1} with {len(batch)} concepts")
             start_id, result, test_case = generate_instruction_response(
-                client, batch, args, prompts
+                client, batch, args, prompts,
+                difficulty_levels=difficulty_levels,
+                num_samples=num_samples,
             )
 
             # print(f"result {result}\n")

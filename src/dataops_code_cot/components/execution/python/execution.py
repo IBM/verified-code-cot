@@ -8,11 +8,6 @@ from dataops_code_cot.components.execution.python._execution import (
     check_correctness_with_test_cases,
 )
 
-logging.basicConfig(
-    format="SystemLog: [%(asctime)s][%(name)s][%(levelname)s] - %(message)s",
-    datefmt="%Y-%m-%d %H:%M:%S",
-    level=logging.INFO,
-)
 
 logger = logging.getLogger(__name__)
 

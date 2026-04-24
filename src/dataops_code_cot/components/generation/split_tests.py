@@ -277,48 +277,28 @@ def split_test_cases(results, test_cases):
     for line_num, line in enumerate(results):  # results_gl
         entry = results[line_num]
 
-        entry["task_id"] = line_num
+        entry["task_id"] = entry.get("id", line_num)
 
         # Process instruction_based_tests
         if "instruction_based_tests" in entry and entry["instruction_based_tests"]:
             processed_tests = []
             for test_case in entry["instruction_based_tests"]:
                 if isinstance(test_case, list):
-                    # Iterate over each element in the test_case list
                     for sub_test in test_case:
-                        if sub_test:  # Skip empty elements
-                            print(
-                                f"\n--- Test Before Processing (ID: {entry['id']}) ---"
-                            )
-                            print(sub_test)
-                            print("---------------------------------------------")
-
+                        if sub_test:
                             split_results = split_test_functions(sub_test)
                             processed_tests.extend(split_results)
-
-                            print(f"--- Test After Processing (ID: {entry['id']}) ---")
-                            for idx, split_test in enumerate(split_results, 1):
-                                print(f"Split Test {idx}:\n{split_test}")
-                            print("---------------------------------------------")
                 else:
-                    # Handle single string test_case
-                    if test_case:  # Skip empty strings
-                        print(f"\n--- Test Before Processing (ID: {entry['id']}) ---")
-                        print(test_case)
-                        print("---------------------------------------------")
-
+                    if test_case:
                         split_results = split_test_functions(test_case)
                         processed_tests.extend(split_results)
 
-                        print(f"--- Test After Processing (ID: {entry['id']}) ---")
-                        for idx, split_test in enumerate(split_results, 1):
-                            print(f"Split Test {idx}:\n{split_test}")
-                        print("---------------------------------------------")
-
+            entry["instruction_based_tests"] = processed_tests
             entry["tests_split"] = processed_tests
             test_Case = test_cases[line_num]
+            test_Case["tests"] = processed_tests
             test_Case["tests_split"] = processed_tests
-            test_Case["task_id"] = line_num
+            test_Case["task_id"] = entry.get("id", line_num)
             results_gl.append(entry)
             test_cases_gl.append(test_Case)
 

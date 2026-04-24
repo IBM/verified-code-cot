@@ -146,7 +146,8 @@ def check_correctness_with_test_cases(
 
                     try:
                         exec_globals = {"time_limit": time_limit}
-                        exec(check_program, exec_globals)
+                        with swallow_io():
+                            exec(check_program, exec_globals)
                         result.append(exec_globals["final_result"])
 
                     except AssertionError:
@@ -162,14 +163,15 @@ def check_correctness_with_test_cases(
                 os.chdir = chdir
 
                 result_queue.put(result)
-        except Exception:
-            result_queue.put(["failed: execution error"] * len(test_functions_code))
+        except Exception as e:
+            result_queue.put([f"failed: execution error: {e}"] * len(test_functions_code))
 
-    # Use Queue for process communication
-    result_queue = multiprocessing.Queue()
+    # Use fork context so local functions can be passed (macOS defaults to spawn)
+    ctx = multiprocessing.get_context("fork")
+    result_queue = ctx.Queue()
 
     try:
-        p = multiprocessing.Process(target=unsafe_execute, args=(result_queue,))
+        p = ctx.Process(target=unsafe_execute, args=(result_queue,))
         p.start()
         p.join(timeout=extend_timeout)
 
@@ -184,8 +186,8 @@ def check_correctness_with_test_cases(
                 result = result_queue.get(timeout=1.0)
             except Exception:
                 result = ["failed: result retrieval error"] * len(test_functions_code)
-    except Exception:
-        result = ["failed: process error"] * len(test_functions_code)
+    except Exception as _exc:
+        result = [f"failed: process error: {_exc}"] * len(test_functions_code)
     finally:
         if p.is_alive():
             try:
@@ -287,15 +289,19 @@ def check_correctness(
 
 @contextlib.contextmanager
 def time_limit(seconds: float):
-    def signal_handler(signum, frame):
-        raise TimeoutException("Timed out!")
-
-    signal.setitimer(signal.ITIMER_REAL, seconds)
-    signal.signal(signal.SIGALRM, signal_handler)
+    # signal.ITIMER_REAL / SIGALRM are not available on Windows or in subprocesses on macOS
     try:
+        def signal_handler(signum, frame):
+            raise TimeoutException("Timed out!")
+        signal.setitimer(signal.ITIMER_REAL, seconds)
+        signal.signal(signal.SIGALRM, signal_handler)
+        try:
+            yield
+        finally:
+            signal.setitimer(signal.ITIMER_REAL, 0)
+    except (AttributeError, OSError):
+        # Fallback: no timeout enforcement — just yield
         yield
-    finally:
-        signal.setitimer(signal.ITIMER_REAL, 0)
 
 
 @contextlib.contextmanager

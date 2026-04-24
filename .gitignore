@@ -1,0 +1,8 @@
+.venv/
+__pycache__/                                                                                                                                                       
+*.pyc
+*.egg-info/                                                                                                                                                        
+failed_executions.txt                                                                                                                                              
+outputs/                    
+*.log                                                                                                                                                              
+.venv/

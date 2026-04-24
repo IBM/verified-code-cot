@@ -1,0 +1,44 @@
+[
+  {
+    "step": 1,
+    "line": "intervals = sorted(intervals)",
+    "state": "[(1, 4), (2, 6), (8, 10), (10, 12)]",
+    "event": "The input is ordered so adjacent intervals can be compared."
+  },
+  {
+    "step": 2,
+    "line": "start, end = intervals[0]",
+    "state": "start=1, end=4",
+    "event": "The first active merged interval is initialized."
+  },
+  {
+    "step": 3,
+    "line": "if next_start <= end",
+    "state": "next=(2, 6), end=4 -> true",
+    "event": "(2, 6) overlaps (1, 4), so end expands to 6."
+  },
+  {
+    "step": 4,
+    "line": "else",
+    "state": "next=(8, 10), end=6 -> gap",
+    "event": "The merged interval (1, 6) is closed."
+  },
+  {
+    "step": 5,
+    "line": "if next_start <= end",
+    "state": "next=(10, 12), end=10 -> true",
+    "event": "Touching boundary counts as continuous coverage, so end becomes 12."
+  },
+  {
+    "step": 6,
+    "line": "merged.append((start, end))",
+    "state": "merged=[(1, 6), (8, 12)]",
+    "event": "The final merged intervals are saved."
+  },
+  {
+    "step": 7,
+    "line": "return sum(end - start ...)",
+    "state": "(6 - 1) + (12 - 8) = 9",
+    "event": "The verified output is 9 covered minutes."
+  }
+]

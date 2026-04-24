@@ -69,9 +69,7 @@ def process_folder(input_folder, output_folder=None):
             else:
                 output_file_path = None
 
-            print(f"Processing {input_file_path}...")
             clean_trace_file(input_file_path, output_file_path)
-            print(f"Done processing {input_file_path}.")
 
 
 def main(

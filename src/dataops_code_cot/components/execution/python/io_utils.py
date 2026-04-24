@@ -55,10 +55,11 @@ class Tools:
 
     @staticmethod
     def clean_code(code_text):
-        # Split by 'python' and keep only unique parts
-        unique_code = set(part.strip() for part in code_text.split("python"))
-        # Join unique parts back into a single string
-        return "\n".join(unique_code)
+        # Strip leading ```python or ``` fences only
+        import re
+        code_text = re.sub(r"^```(?:python)?\s*\n?", "", code_text.strip())
+        code_text = re.sub(r"\n?```\s*$", "", code_text.strip())
+        return code_text.strip()
 
     @staticmethod
     def dump_pickle(path, content):
