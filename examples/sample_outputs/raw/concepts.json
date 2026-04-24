@@ -1,0 +1,12 @@
+[
+  {
+    "id": 0,
+    "concept": "interval merging with boundary conditions",
+    "description": "Merge sorted intervals while preserving boundary conditions.",
+    "examples": [
+      "calendar coverage",
+      "range union",
+      "busy time"
+    ]
+  }
+]

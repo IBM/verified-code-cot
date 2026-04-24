@@ -11,6 +11,8 @@
 # ]
 # ///
 import os
+import warnings
+warnings.filterwarnings("ignore", "A value is trying to be set on a copy")
 from functools import partial
 
 
@@ -33,9 +35,8 @@ def check_coverage_percentage(source_code, test_case):
         outfile_name = f"{temp_dir}/{file_name}"
         with open(outfile_name, "w") as f:
             f.write(outfile_text)
-        print(f"cd {temp_dir} && coverage run -m pytest {file_name} && cd -")
-        run(f"cd {temp_dir} && coverage run -m pytest {file_name}")
-        coverage_output = run(f"cd {temp_dir} && coverage report ")
+        run(f"cd {temp_dir} && coverage run -m pytest {file_name} -q 2>/dev/null", hide=True)
+        coverage_output = run(f"cd {temp_dir} && coverage report", hide=True)
         percentage = coverage_output.stdout.splitlines()[-1].split()[-1]
         return percentage
 
@@ -74,9 +75,8 @@ def annotate_best_test_from_coverage(row):
 
 def process_file(input_file, output_file):
     import pandas as pd
-
     df = pd.read_json(input_file, lines=True)
-    df_out = df.parallel_apply(annotate_best_test_from_coverage, axis=1)
+    df_out = df.apply(annotate_best_test_from_coverage, axis=1)
     df_out.to_json(output_file, lines=True, orient="records")
 
 
@@ -86,15 +86,12 @@ def process_folder(input_folder, output_folder, dry_run=False):
     files = glob.glob(f"{input_folder}/*.jsonl")
     from joblib import Parallel, delayed
 
-    dff = pd.DataFrame({"files": files})
-
     def parallel_process_files(entry, outfolder):
         file_name = entry
         file_base_name = os.path.basename(file_name)
         output_file_name = os.path.join(
             outfolder, file_base_name.replace(".jsonl", "_annotated.jsonl")
         )
-        print("processing", file_base_name, output_file_name)
         if not dry_run:
             process_file(file_name, output_file_name)
 
@@ -111,7 +108,7 @@ def main(input_folder: str, output_folder: str, dry_run: bool = False):
     process_folder(input_folder, output_folder, dry_run)
 
 
-if _name__ == "__main__":
+if __name__ == "__main__":
     import typer
 
     typer.run(main)

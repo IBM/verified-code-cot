@@ -1,96 +1,85 @@
-## Verified Code CoT Data Pipeline
+# Think Like You Execute: Verifiable Chain of Thought from Program Traces
 
-### Overview
+<!-- > *Shailja Thakur, Vaibhav Saxena, Rohan Kulkarni, Shivdeep Singh, Parameswaran Selvam, Hiroshi Kanayama, Hima Patel*   -->
+> **IBM Research**
 
-This pipeline generates verifiable Chain-of-Thought (CoT) datasets for code reasoning tasks by grounding rationales directly in program execution traces. Unlike traditional synthetic datasets that rely on teacher-model explanations (which may hallucinate), this pipeline ensures every reasoning step is correct by construction.
+---
 
-The pipeline supports:
+This repository contains the **Verified Code CoT** data synthesis pipeline — an end-to-end system that generates execution-grounded chain-of-thought training data for code reasoning. Each reasoning sample is verified against actual program execution traces, not generated from static code.
 
-  >Forward reasoning (input → output prediction) <br/>
-  Backward reasoning (output → input reconstruction)<br/>
-  Trace-grounded natural language rationales<br/>
-  Scalable synthesis across diverse programming concepts<br/>
+<p align="center">
+  <img src="docs/pipeline.svg" width="860" alt="Verified CodeCoT pipeline"/>
+</p>
 
-### Key Features
+---
 
-**Execution-Grounded Verification:** Rationales are derived from actual runtime traces, eliminating logical hallucinations.<br/>
-**Concept-First Curriculum:** Problems are synthesized from abstract programming concepts (e.g., recursion, dynamic programming), ensuring diversity and controlled difficulty.<br/>
-**Bi-Directional Reasoning Dataset:** Supports both forward and backward reasoning tasks for robust model training.<br/>
-**Dual Agreement Filtering:** A scalable verification method that clusters solutions/tests to identify high-quality artifacts.<br/>
-**Open-Source Infrastructure:** Modular design for reproducibility and extensibility.<br/>
+## What's in this repo
 
-### Pipeline Architecture
+| Path | Description |
+|---|---|
+| `examples/run_demo.py` | End-to-end pipeline runner (all stages) |
+| `examples/test_concepts.txt` | Sample seed input |
+| `pipeline_config.yaml` | All configurable knobs |
+| `src/dataops_code_cot/components/` | Stage A + B core logic |
+| `src/dataops_code_cot/scripts/` | Stage C scripts (traces, CoT generation, verification) |
+| `COT_PIPELINE_GUIDE.md` | Full stage-by-stage guide |
 
-**Stage A: Concept Sourcing & Curriculum-Driven Synthesis**
+---
 
->**Document Processing:** Extract programming concepts from technical literature using Docling.<br/>
-**Hybrid Concept Identification:** Combine statistical keyword extraction (PyTextRank) with LLM-based filtering.<br/>
-**Deduplication & Quality Scoring:** Normalize, cluster, and score concepts by difficulty and relevance.<br/>
+## Setup
 
-**Problem Synthesis:**
-
-  >Instruction generation<br/>
-  Signature generation (function/class metadata)<br/>
-  Candidate code solutions <br/>
-  Test scenario identification<br/>
-  Unit test generation (strict assert-only format)<br/>
-
-**Stage B: Execution-Based Verification**
-
-Mass Execution: Run all solution-test pairs in sandboxed containers.<br/>
-Pass/Fail Matrix: Construct binary matrix of results.<br/>
-Dual Agreement Clustering:
-Group solutions by identical test pass patterns.<br/>
-Score clusters by solution agreement × test coverage.<br/>
-Select highest-scoring cluster for canonical solution + tests.<br/>
-
-
-**Stage C: CoT Generation**
-
-Trace Extraction: Capture variable states, control flow, and transitions during execution.<br/>
-Trace-to-Rationale Translation: Convert execution traces into natural language reasoning steps.<br/>
-
-Bi-Directional CoT:<br/>
-  >Forward reasoning: input → output<br/>
-  Backward reasoning: output → input<br/>
-
-Dataset Assembly: Package verified rationales, code, and tests into training-ready format.
-
-
-## Getting Started
-
-Prerequisites
-  Python 3.10+
-
-- **Clone the repo**
-
-  The repo uses [uv](https://astral.sh/uv/) for python version and package management.
-
-The following command can be run everytime we use the pipeline. When executed for the first time, it installs the required dependancies.
-
-``` shell
-. setenv.sh
+```bash
+. ./setenv.sh
+uv pip install -e .
 ```
- 
 
+`setenv.sh` creates the virtual environment and installs dependencies. `uv pip install -e .` installs the `dataops_code_cot` package. Run both once before anything else.
 
-## Supported LLMS
+## Quick Start
 
-The pipeline supports OPENAI like api, which means it can be used with hosted models which are served via openai api, 
-or behind litellm proxy. Even local LLMs can be served via `vllm serve` to run a openai like api server which can be 
-used by the pipeline.
+```bash
+python examples/run_demo.py --input-file examples/test_concepts.txt
+```
 
-We use an abstraction called client, for abstracting model calls. 
+Model backend and all other settings are read from `pipeline_config.yaml`. Override on the command line if needed:
 
-NOTE: Advanced users who want to use GPU, can use vll based client which supports batching. However they need to install vllm and change the code
-to use vllm based client instead of openai api based client.
+```bash
+python examples/run_demo.py \
+  --input-file examples/test_concepts.txt \
+  --backend ollama \
+  --model-id llama3.1:8b
+```
 
+**Output:** CoT data → `<output-dir>/raw/filtered/` · Summary → `<output-dir>/demo_report.md`
 
+Supported backends: `ollama` · `openai-compatible` · `rits` (set `RITS_BASE_URL` + `RITS_API_KEY`)
 
-## How to Run
+---
 
- Please check [pipeline guide.](./COT_PIPELINE_GUIDE.md)
+## Pipeline
 
+**Stage A — Concept-driven synthesis.** Extract programming concepts from seed text. For each concept, generate natural language instructions across difficulty levels, derive typed function signatures, and produce candidate code solutions with assert-style test cases.
 
-## Reference
+**Stage B — Execution-based quality filter.** Execute all solution–test combinations in a sandboxed environment. Cluster solutions by identical pass/fail patterns and score each cluster using dual-agreement consensus (`|C| × |T_p|`). Only high-consensus pairs are retained.
 
+**Stage C — Execution-grounded CoT generation and verification.** Instrument retained solutions with PySnooper to capture execution traces (variable states, transitions, control flow). Prompt an LLM to generate forward reasoning (input → output) and backward reasoning (output → input), both grounded in the trace. Each rationale is verified using a sliding-window entity-matching algorithm — rationales whose claimed variable values or control flow diverge from the trace are discarded.
+
+---
+
+## Configuration
+
+Edit `pipeline_config.yaml` to control concept cap, difficulty level, number of samples, test case limits, trace counts, and CoT pair budget — no flags needed.
+
+---
+
+## Citation
+
+```bibtex
+@inproceedings{thakur2025verified,
+  title     = {Think Like You Execute: Verifiable Chain of Thought from Program Traces},
+  author    = {Thakur, Shailja and Saxena, Vaibhav and Kulkarni, Rohan and
+               Singh, Shivdeep and Selvam, Parameswaran and Kanayama, Hiroshi and Patel, Hima},
+  booktitle = {Proceedings of the 63rd Annual Meeting of the Association for Computational Linguistics (Industry Track)},
+  year      = {2026},
+}
+```

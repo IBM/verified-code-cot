@@ -23,11 +23,6 @@ from typing import Any, Dict, List, Optional, Set, Tuple, Union
 
 import typer
 
-logging.basicConfig(
-    format="SystemLog: [%(asctime)s][%(name)s][%(levelname)s] - %(message)s",
-    datefmt="%Y-%m-%d %H:%M:%S",
-    level=logging.DEBUG,
-)
 logger = logging.getLogger(__name__)
 
 
@@ -520,14 +515,17 @@ def execute_single_test(args: Tuple) -> None:
 
 
 def generate_traces(
-    data: List[Dict], trace_dir: str, logs_dir: str
+    data: List[Dict], trace_dir: str, logs_dir: str,
+    timeout_duration: int = 5,
+    max_workers: int = None,
+    batch_size: int = 1000,
 ) -> Tuple[Dict, Dict]:
     execution_traces = {}
     missing_modules = defaultdict(set)
     failed_executions = []
-    TIMEOUT_DURATION = 5
-    MAX_WORKERS = min(multiprocessing.cpu_count() * 2, 32)
-    BATCH_SIZE = 1000  # Process 1000 JSONL entries at a time
+    TIMEOUT_DURATION = timeout_duration
+    MAX_WORKERS = max_workers or min(multiprocessing.cpu_count() * 2, 32)
+    BATCH_SIZE = batch_size
 
     # Calculate total tasks for logging
     total_tasks = sum(
@@ -699,6 +697,7 @@ def generate_traces(
 def process_file(
     input_file: str = typer.Option(..., "--input", "-i", help="Input file path"),
     output_dir: str = typer.Option(..., "--output_dir", "-o", help="Output file path"),
+    config: str = typer.Option("pipeline_config.yaml", "--config", help="Path to pipeline_config.yaml"),
 ) -> None:
     # Create output dir if it doesn't exist
     import pathlib
@@ -708,9 +707,21 @@ def process_file(
     trace_dir = output_dir_path / "data/test_code_1"
     logs_dir = output_dir_path / "data/pysnooper_trace_uncleaned_v1"
     [dir.mkdir(parents=True, exist_ok=True) for dir in [trace_dir, logs_dir]]
+    # Load config
+    _timeout, _max_workers, _batch_size = 5, None, 1000
+    import pathlib as _pl
+    if _pl.Path(config).exists():
+        try:
+            import yaml as _yaml
+            _c = (_yaml.safe_load(_pl.Path(config).read_text()) or {}).get("stage_c", {})
+            _timeout     = _c.get("trace_timeout", _timeout)
+            _max_workers = _c.get("max_workers",   _max_workers)
+            _batch_size  = _c.get("batch_size",    _batch_size)
+        except Exception:
+            pass
+
     logger.info("Starting execution with optimized ProcessPoolExecutor...")
     start_time = time.time()
-    # Load JSONL
     try:
         with open(input_file, "r") as f:
             data = [json.loads(line) for line in f]
@@ -719,7 +730,12 @@ def process_file(
         logger.error(f"Failed to load JSONL: {e}")
         return {}, {}
 
-    execution_traces, missing_modules = generate_traces(data, trace_dir, logs_dir)
+    execution_traces, missing_modules = generate_traces(
+        data, trace_dir, logs_dir,
+        timeout_duration=_timeout,
+        max_workers=_max_workers,
+        batch_size=_batch_size,
+    )
     end_time = time.time()
     logger.info(f"Total execution time: {end_time - start_time:.2f} seconds")
     logger.info("Done")
