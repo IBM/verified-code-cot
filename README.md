@@ -8,7 +8,7 @@
 This repository contains the **Verified Code CoT** data synthesis pipeline — an end-to-end system that generates execution-grounded chain-of-thought training data for code reasoning. Each reasoning sample is verified against actual program execution traces, not generated from static code.
 
 <p align="center">
-  <img src="docs/pipeline.png" width="1000" alt="Verified CodeCoT pipeline"/>
+  <img src="docs/pipeline.svg" width="860" alt="Verified CodeCoT pipeline"/>
 </p>
 
 ---
@@ -47,13 +47,12 @@ Model backend and all other settings are read from `pipeline_config.yaml`. Overr
 python examples/run_demo.py \
   --input-file examples/test_concepts.txt \
   --backend ollama \
-  --model-id llama3.1:8b \
-  --output-dir /tmp/codecot_run
+  --model-id llama3.1:8b
 ```
 
 **Output:** CoT data → `<output-dir>/raw/filtered/` · Summary → `<output-dir>/demo_report.md`
 
-Supported backends: `ollama` · `openai-compatible`
+Supported backends: `ollama` · `openai-compatible` · `rits` (set `RITS_BASE_URL` + `RITS_API_KEY`)
 
 ---
 
@@ -70,10 +69,6 @@ Supported backends: `ollama` · `openai-compatible`
 ## Configuration
 
 Edit `pipeline_config.yaml` to control concept cap, difficulty level, number of samples, test case limits, trace counts, and CoT pair budget — no flags needed.
-
-> **Note on model choice:** Models that follow structured prompts reliably (e.g. `llama3.1:8b`, `nemotron`, Mistral-family) work best. Thinking models (Qwen3, DeepSeek-R1) require `max_output_tokens: 4096` or higher in `pipeline_config.yaml`. Very small models (< 3B) may not follow the output format consistently.
-
-For running at scale and understanding each stage in detail, see [COT_PIPELINE_GUIDE.md](./COT_PIPELINE_GUIDE.md).
 
 ---
 
